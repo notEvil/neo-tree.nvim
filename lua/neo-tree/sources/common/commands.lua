@@ -578,6 +578,10 @@ local open_with_cmd = function(state, open_cmd, toggle_directory, open_file)
     end
   end
 
+  if toggle_directory == 'edit' then
+    toggle_directory = function(node) open() end
+  end
+
   if utils.is_expandable(node) then
     if toggle_directory and node.type == "directory" then
       toggle_directory(node)
