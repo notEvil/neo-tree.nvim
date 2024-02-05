@@ -10,7 +10,7 @@ local manager = require("neo-tree.sources.manager")
 
 local M = {
   name = "git_status",
-  display_name = "  Git "
+  display_name = " 󰊢 Git "
 }
 
 local wrap = function(func)
@@ -23,12 +23,16 @@ end
 
 ---Navigate to the given path.
 ---@param path string Path to navigate to. If empty, will navigate to the cwd.
-M.navigate = function(state, path, path_to_reveal)
+M.navigate = function(state, path, path_to_reveal, callback, async)
   state.dirty = false
   if path_to_reveal then
     renderer.position.set(state, path_to_reveal)
   end
   items.get_git_status(state)
+
+  if type(callback) == "function" then
+    vim.schedule(callback)
+  end
 end
 
 M.refresh = function()
@@ -71,6 +75,12 @@ M.setup = function(config, global_config)
   end
 
   if global_config.enable_diagnostics then
+    manager.subscribe(M.name, {
+      event = events.STATE_CREATED,
+      handler = function(state)
+        state.diagnostics_lookup = utils.get_diagnostic_counts()
+      end,
+    })
     manager.subscribe(M.name, {
       event = events.VIM_DIAGNOSTIC_CHANGED,
       handler = wrap(manager.diagnostics_changed),

@@ -29,7 +29,7 @@ M.clear_filter = function(state)
 end
 
 M.copy = function(state)
-  cc.copy(state, utils.wrap(refresh, state))
+  cc.copy(state, utils.wrap(fs.focus_destination_children, state))
 end
 
 ---Marks node as copied, so that it can be pasted somewhere else.
@@ -51,7 +51,7 @@ M.cut_to_clipboard_visual = function(state, selected_nodes)
 end
 
 M.move = function(state)
-  cc.move(state, utils.wrap(refresh, state))
+  cc.move(state, utils.wrap(fs.focus_destination_children, state))
 end
 
 ---Pastes all items from the clipboard to the current directory.
@@ -67,11 +67,11 @@ M.delete_visual = function(state, selected_nodes)
   cc.delete_visual(state, selected_nodes, utils.wrap(refresh, state))
 end
 
-M.expand_all_nodes = function(state)
-  local toggle_dir_no_redraw = function(_state, node)
-    fs.toggle_directory(_state, node, nil, true, true)
+M.expand_all_nodes = function(state, node)
+  if node == nil then
+    node = state.tree:get_node(state.path)
   end
-  cc.expand_all_nodes(state, toggle_dir_no_redraw)
+  cc.expand_all_nodes(state, node, fs.prefetcher)
 end
 
 ---Shows the filter input, which will filter the tree.
@@ -185,6 +185,12 @@ M.open = function(state)
 end
 M.open_split = function(state)
   cc.open_split(state, utils.wrap(fs.toggle_directory, state))
+end
+M.open_rightbelow_vs = function(state)
+  cc.open_rightbelow_vs(state, utils.wrap(fs.toggle_directory, state))
+end
+M.open_leftabove_vs = function(state)
+  cc.open_leftabove_vs(state, utils.wrap(fs.toggle_directory, state))
 end
 M.open_vsplit = function(state)
   cc.open_vsplit(state, utils.wrap(fs.toggle_directory, state))

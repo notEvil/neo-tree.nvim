@@ -4,7 +4,20 @@ Neo-tree is a Neovim plugin to browse the file system and other tree like
 structures in whatever style suits you, including sidebars, floating windows,
 netrw split style, or all of them at once!
 
-![Neo-tree file system](https://github.com/nvim-neo-tree/resources/blob/main/images/Neo-tree-with-right-aligned-symbols.png)
+### Neo-tree filesystem as Sidebar:
+
+This screenshot shows Neo-tree opened in the traditional sidebar layout:
+
+![Neo-tree file system sidebar](https://github.com/nvim-neo-tree/resources/blob/main/images/Neo-tree-with-right-aligned-symbols.png)
+
+### Neo-tree filesystem Netrw Style
+
+The below screenshot shows Neo-tree opened "netrw style" (`:Neotree position=current`). When opened in this way,
+there is more room so the extra detail columns can be shown. This screenshot also shows how the contents can be
+sorted on any column. In this example, we are sorted on "Size" descending:
+
+![Neo-tree file system
+details](https://github.com/nvim-neo-tree/resources/blob/main/images/Neo-tree-with-file-details-and-sort.png)
 
 ### Breaking Changes BAD :bomb: :imp:
 
@@ -15,8 +28,8 @@ will be a new branch that you can opt into, when it is a good time for you.
 
 See [What is a Breaking Change?](#what-is-a-breaking-change) for details.
 
-See [Changelog 2.0](https://github.com/nvim-neo-tree/neo-tree.nvim/wiki/Changelog#20)
-for breaking changes and deprecations in 2.0.
+See [Changelog 3.0](https://github.com/nvim-neo-tree/neo-tree.nvim/wiki/Changelog#30)
+for breaking changes and deprecations in 3.0.
 
 
 ### User Experience GOOD :slightly_smiling_face: :thumbsup:
@@ -31,7 +44,7 @@ should you!
 - Neo-tree won't leave its window scrolled to the last line when there is
   plenty of room to display the whole tree.
 - Neo-tree does not need to be manually refreshed (set `use_libuv_file_watcher=true`)
-- Neo-tree can intelligently follow the current file (set `follow_current_file=true`)
+- Neo-tree can intelligently follow the current file (set `follow_current_file.enabled=true`)
 - Neo-tree is thoughtful about maintaining or setting focus on the right node
 - Neo-tree windows in different tabs are completely separate
 - `respect_gitignore` actually works!
@@ -43,18 +56,30 @@ so we can fix it.
 
 ## Minimal Quickstart
 
+#### Minimal Example for Lazy:
+```lua
+{
+    "nvim-neo-tree/neo-tree.nvim",
+    branch = "v3.x",
+    dependencies = {
+      "nvim-lua/plenary.nvim",
+      "nvim-tree/nvim-web-devicons", -- not strictly required, but recommended
+      "MunifTanjim/nui.nvim",
+      -- "3rd/image.nvim", -- Optional image support in preview window: See `# Preview Mode` for more information
+    }
+}
+```
+
 #### Minimal Example for Packer:
 ```lua
--- Unless you are still migrating, remove the deprecated commands from v1.x
-vim.cmd([[ let g:neo_tree_remove_legacy_commands = 1 ]])
-
 use {
   "nvim-neo-tree/neo-tree.nvim",
-    branch = "v2.x",
+    branch = "v3.x",
     requires = { 
       "nvim-lua/plenary.nvim",
       "nvim-tree/nvim-web-devicons", -- not strictly required, but recommended
       "MunifTanjim/nui.nvim",
+      -- "3rd/image.nvim", -- Optional image support in preview window: See `# Preview Mode` for more information
     }
   }
 ```
@@ -74,38 +99,33 @@ Press `?` in the Neo-tree window to view the list of mappings.
 ```lua
 use {
   "nvim-neo-tree/neo-tree.nvim",
-    branch = "v2.x",
+    branch = "v3.x",
     requires = { 
       "nvim-lua/plenary.nvim",
       "nvim-tree/nvim-web-devicons", -- not strictly required, but recommended
       "MunifTanjim/nui.nvim",
+      -- "3rd/image.nvim", -- Optional image support in preview window: See `# Preview Mode` for more information
       {
-        -- only needed if you want to use the commands with "_with_window_picker" suffix
         's1n7ax/nvim-window-picker',
-        tag = "v1.*",
+        version = '2.*',
         config = function()
-          require'window-picker'.setup({
-            autoselect_one = true,
-            include_current = false,
-            filter_rules = {
-              -- filter using buffer options
-              bo = {
-                -- if the file type is one of following, the window will be ignored
-                filetype = { 'neo-tree', "neo-tree-popup", "notify" },
-
-                -- if the buffer type is one of following, the window will be ignored
-                buftype = { 'terminal', "quickfix" },
-              },
+            require 'window-picker'.setup({
+                filter_rules = {
+                    include_current_win = false,
+                    autoselect_one = true,
+                    -- filter using buffer options
+                    bo = {
+                        -- if the file type is one of following, the window will be ignored
+                        filetype = { 'neo-tree', "neo-tree-popup", "notify" },
+                        -- if the buffer type is one of following, the window will be ignored
+                        buftype = { 'terminal', "quickfix" },
+                    },
             },
-            other_win_hl_color = '#e35e4f',
-          })
+        })
         end,
-      }
+      },
     },
     config = function ()
-      -- Unless you are still migrating, remove the deprecated commands from v1.x
-      vim.cmd([[ let g:neo_tree_remove_legacy_commands = 1 ]])
-
       -- If you want icons for diagnostic errors, you'll need to define them somewhere:
       vim.fn.sign_define("DiagnosticSignError",
         {text = " ", texthl = "DiagnosticSignError"})
@@ -114,15 +134,14 @@ use {
       vim.fn.sign_define("DiagnosticSignInfo",
         {text = " ", texthl = "DiagnosticSignInfo"})
       vim.fn.sign_define("DiagnosticSignHint",
-        {text = "", texthl = "DiagnosticSignHint"})
-      -- NOTE: this is changed from v1.x, which used the old style of highlight groups
-      -- in the form "LspDiagnosticsSignWarning"
+        {text = "󰌵", texthl = "DiagnosticSignHint"})
 
       require("neo-tree").setup({
         close_if_last_window = false, -- Close Neo-tree if it is the last window left in the tab
         popup_border_style = "rounded",
         enable_git_status = true,
         enable_diagnostics = true,
+        enable_normal_mode_for_inputs = false, -- Enable normal mode for input dialogs.
         open_files_do_not_replace_types = { "terminal", "trouble", "qf" }, -- when opening files, do not use windows containing these filetypes or buftypes
         sort_case_insensitive = false, -- used when sorting files and directories in the tree
         sort_function = nil , -- use a custom function for sorting files and directories in the tree 
@@ -154,7 +173,7 @@ use {
           icon = {
             folder_closed = "",
             folder_open = "",
-            folder_empty = "ﰊ",
+            folder_empty = "󰜌",
             -- The next two settings are only a fallback, if you use nvim-web-devicons and configure default icons there
             -- then these will never be used.
             default = "*",
@@ -175,19 +194,39 @@ use {
               added     = "", -- or "✚", but this is redundant info if you use git_status_colors on the name
               modified  = "", -- or "", but this is redundant info if you use git_status_colors on the name
               deleted   = "✖",-- this can only be used in the git_status source
-              renamed   = "",-- this can only be used in the git_status source
+              renamed   = "󰁕",-- this can only be used in the git_status source
               -- Status type
               untracked = "",
               ignored   = "",
-              unstaged  = "",
+              unstaged  = "󰄱",
               staged    = "",
               conflict  = "",
             }
           },
+          -- If you don't want to use these columns, you can set `enabled = false` for each of them individually
+          file_size = {
+            enabled = true,
+            required_width = 64, -- min width of window required to show this column
+          },
+          type = {
+            enabled = true,
+            required_width = 122, -- min width of window required to show this column
+          },
+          last_modified = {
+            enabled = true,
+            required_width = 88, -- min width of window required to show this column
+          },
+          created = {
+            enabled = true,
+            required_width = 110, -- min width of window required to show this column
+          },
+          symlink_target = {
+            enabled = false,
+          },
         },
         -- A list of functions, each representing a global custom command
         -- that will be available in all sources (if not overridden in `opts[source_name].commands`)
-        -- see `:h neo-tree-global-custom-commands`
+        -- see `:h neo-tree-custom-commands-global`
         commands = {},
         window = {
           position = "left",
@@ -203,8 +242,9 @@ use {
             },
             ["<2-LeftMouse>"] = "open",
             ["<cr>"] = "open",
-            ["<esc>"] = "revert_preview",
-            ["P"] = { "toggle_preview", config = { use_float = true } },
+            ["<esc>"] = "cancel", -- close preview or floating neo-tree window
+            ["P"] = { "toggle_preview", config = { use_float = true, use_image_nvim = true } },
+            -- Read `# Preview Mode` for more information
             ["l"] = "focus_preview",
             ["S"] = "open_split",
             ["s"] = "open_vsplit",
@@ -246,6 +286,7 @@ use {
             ["?"] = "show_help",
             ["<"] = "prev_source",
             [">"] = "next_source",
+            ["i"] = "show_file_details",
           }
         },
         nesting_rules = {},
@@ -273,8 +314,11 @@ use {
               --".null-ls_*",
             },
           },
-          follow_current_file = false, -- This will find and focus the file in the active buffer every
-                                       -- time the current file is changed while the tree is open.
+          follow_current_file = {
+            enabled = false, -- This will find and focus the file in the active buffer every time
+            --               -- the current file is changed while the tree is open.
+            leave_dirs_open = false, -- `false` closes auto expanded dirs, such as with `:Neotree reveal`
+          },
           group_empty_dirs = false, -- when true, empty folders will be grouped together
           hijack_netrw_behavior = "open_default", -- netrw disabled, opening a directory opens neo-tree
                                                   -- in whatever position is specified in window.position
@@ -296,6 +340,14 @@ use {
               ["<c-x>"] = "clear_filter",
               ["[g"] = "prev_git_modified",
               ["]g"] = "next_git_modified",
+              ["o"] = { "show_help", nowait=false, config = { title = "Order by", prefix_key = "o" }},
+              ["oc"] = { "order_by_created", nowait = false },
+              ["od"] = { "order_by_diagnostics", nowait = false },
+              ["og"] = { "order_by_git_status", nowait = false },
+              ["om"] = { "order_by_modified", nowait = false },
+              ["on"] = { "order_by_name", nowait = false },
+              ["os"] = { "order_by_size", nowait = false },
+              ["ot"] = { "order_by_type", nowait = false },
             },
             fuzzy_finder_mappings = { -- define keymaps for filter popup window in fuzzy_finder_mode
               ["<down>"] = "move_cursor_down",
@@ -308,8 +360,11 @@ use {
           commands = {} -- Add a custom command or override a global one using the same function name
         },
         buffers = {
-          follow_current_file = true, -- This will find and focus the file in the active buffer every
-                                       -- time the current file is changed while the tree is open.
+          follow_current_file = {
+            enabled = true, -- This will find and focus the file in the active buffer every time
+            --              -- the current file is changed while the tree is open.
+            leave_dirs_open = false, -- `false` closes auto expanded dirs, such as with `:Neotree reveal`
+          },
           group_empty_dirs = true, -- when true, empty folders will be grouped together
           show_unloaded = true,
           window = {
@@ -317,6 +372,13 @@ use {
               ["bd"] = "buffer_delete",
               ["<bs>"] = "navigate_up",
               ["."] = "set_root",
+              ["o"] = { "show_help", nowait=false, config = { title = "Order by", prefix_key = "o" }},
+              ["oc"] = { "order_by_created", nowait = false },
+              ["od"] = { "order_by_diagnostics", nowait = false },
+              ["om"] = { "order_by_modified", nowait = false },
+              ["on"] = { "order_by_name", nowait = false },
+              ["os"] = { "order_by_size", nowait = false },
+              ["ot"] = { "order_by_type", nowait = false },
             }
           },
         },
@@ -331,6 +393,13 @@ use {
               ["gc"] = "git_commit",
               ["gp"] = "git_push",
               ["gg"] = "git_commit_and_push",
+              ["o"] = { "show_help", nowait=false, config = { title = "Order by", prefix_key = "o" }},
+              ["oc"] = { "order_by_created", nowait = false },
+              ["od"] = { "order_by_diagnostics", nowait = false },
+              ["om"] = { "order_by_modified", nowait = false },
+              ["on"] = { "order_by_name", nowait = false },
+              ["os"] = { "order_by_size", nowait = false },
+              ["ot"] = { "order_by_type", nowait = false },
             }
           }
         }
@@ -355,55 +424,6 @@ into a buffer after installing Neo-tree by running:
 
 ```
 :lua require("neo-tree").paste_default_config()
-```
-
-#### Configuration for Nerd Fonts v3 Users
-
-The following configuration should fix broken icons if you are using Nerd Fonts v3:
-
-```lua
-require("neo-tree").setup({
-  default_component_configs = {
-    icon = {
-      folder_empty = "󰜌",
-      folder_empty_open = "󰜌",
-    },
-    git_status = {
-      symbols = {
-        renamed   = "󰁕",
-        unstaged  = "󰄱",
-      },
-    },
-  },
-  document_symbols = {
-    kinds = {
-      File = { icon = "󰈙", hl = "Tag" },
-      Namespace = { icon = "󰌗", hl = "Include" },
-      Package = { icon = "󰏖", hl = "Label" },
-      Class = { icon = "󰌗", hl = "Include" },
-      Property = { icon = "󰆧", hl = "@property" },
-      Enum = { icon = "󰒻", hl = "@number" },
-      Function = { icon = "󰊕", hl = "Function" },
-      String = { icon = "󰀬", hl = "String" },
-      Number = { icon = "󰎠", hl = "Number" },
-      Array = { icon = "󰅪", hl = "Type" },
-      Object = { icon = "󰅩", hl = "Type" },
-      Key = { icon = "󰌋", hl = "" },
-      Struct = { icon = "󰌗", hl = "Type" },
-      Operator = { icon = "󰆕", hl = "Operator" },
-      TypeParameter = { icon = "󰊄", hl = "Type" },
-      StaticMethod = { icon = '󰠄 ', hl = 'Function' },
-    }
-  },
-  -- Add this section only if you've configured source selector.
-  source_selector = {
-    sources = {
-      { source = "filesystem", display_name = " 󰉓 Files " },
-      { source = "git_status", display_name = " 󰊢 Git " },
-    },
-  },
-  -- Other options ...
-})
 ```
 
 ## The `:Neotree` Command
@@ -463,6 +483,7 @@ What to show. Can be one of:
 | filesystem | Show a file browser. DEFAULT |
 | buffers    | Show a list of currently open buffers. |
 | git_status | Show the output of `git status` in a tree layout. |
+| last       | Equivalent to the last source used |
 
 #### `position`
 Where to show it, can be one of:
@@ -540,6 +561,12 @@ given file is not within the current working directory, you will be asked if you
 want to change the current working directory. If you include this flag, it will
 automatically change the directory without prompting. This option implies
 "reveal", so you do not need to specify both.
+
+#### `selector`
+This is a boolean flag. When you specifically set this to false (`selector=false`)
+neo-tree will disable the [source selector](#source-selector) for that neo-tree
+instance. Otherwise, the source selector will depend on what you specified in
+the configuration (`config.source_selector.{winbar,statusline}`).
 
 See `:h neo-tree-commands` for details and a full listing of available arguments.
 
@@ -635,9 +662,13 @@ add `"document_symbols"` to `config.sources` and open it with the command
 :Neotree document_symbols
 ```
 
+### External Sources
 
+There are more sources available as extensions that are managed outside of this repository. See the
+[wiki](https://github.com/nvim-neo-tree/neo-tree.nvim/wiki/External-Sources) for me information.
 
 ### Source Selector
+
 ![Neo-tree source selector](https://github.com/nvim-neo-tree/resources/raw/main/images/Neo-tree-source-selector.png)
 
 You can enable a clickable source selector in either the winbar (requires neovim 0.8+) or the statusline.
@@ -655,6 +686,44 @@ To do so, set one of these options to `true`:
 There are many configuration options to change the style of these tabs. 
 See [lua/neo-tree/defaults.lua](lua/neo-tree/defaults.lua) for details.
 
+### Preview Mode
+
+`:h neo-tree-preview-mode`
+
+Preview mode will temporarily show whatever file the cursor is on without
+switching focus from the Neo-tree window. By default, files will be previewed
+in a new floating window. This can also be configured to automatically choose
+an existing split by configuring the command like this:
+
+```lua
+require("neo-tree").setup({
+  window = {
+    mappings = {
+      ["P"] = { "toggle_preview", config = { use_float = false, use_image_nvim = true } },
+    }
+  }
+})
+```
+
+Anything that causes Neo-tree to lose focus will end preview mode. When
+`use_float = false`, the window that was taken over by preview mode will revert
+back to whatever was shown in that window before preview mode began.
+
+If you want to work with the floating preview mode window in autocmds or other
+custom code, the window will have the `neo-tree-preview` filetype.
+
+When preview mode is not using floats, the window will have the window local
+variable `neo_tree_preview` set to `1` to indicate that it is being used as a
+preview window. You can refer to this in statusline and winbar configs to mark a
+window as being used as a preview.
+
+#### Image Support in Preview Mode
+
+If you have [3rd/image.nvim](https://github.com/3rd/image.nvim) installed, preview
+mode supports image rendering by default using kitty graphics protocol or ueberzug
+([Video](https://user-images.githubusercontent.com/41065736/277180763-b7152637-f310-43a5-b8c3-4bcba135629d.mp4)).
+However, if you do not want this feature, you can disable it by changing the option
+`use_image_nvim = false` in the mappings config mentioned above.
 
 ## Configuration and Customization
 
@@ -737,7 +806,7 @@ add any features you can think of through existing hooks in the setup function.
 
 As of v1.30, a breaking change is defined as anything that _changes_ existing:
 
-- vim commands (`:NeoTreeShow`, `:NeoTreeReveal`, etc)
+- vim commands (`:Neotree`)
 - configuration options that are passed into the `setup()` function
 - `NeoTree*` highlight groups
 - lua functions exported in the following modules that are not prefixed with `_`:
@@ -757,6 +826,22 @@ part of the public API, please open an issue so we can discuss it.
 Contributions are encouraged. Please see [CONTRIBUTING](CONTRIBUTING.md) for more details.
 
 ## Acknowledgements
+
+### Maintainers
+
+First and foremost, this project is a community endeavor and would not survive without the constant stream of features
+and bug fixes that comes from that community. There have been many valued contributors, but a few have stepped up to
+become maintainers that generously donate their time to guide the project, help out others, and manage the issues. The
+current list of maintainers are:
+
+(in alphabetical order)
+
+- @cseickel
+- @miversen33
+- @nhat-vo
+- @pysan3
+
+### Other Projects
 
 This project relies upon these two excellent libraries:
 - [nui.nvim](https://github.com/MunifTanjim/nui.nvim) for all UI components, including the tree!

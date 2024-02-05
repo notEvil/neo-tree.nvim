@@ -11,10 +11,27 @@ local should_use_popup_input = function()
 end
 
 M.show_input = function(input, callback)
+  local config = require("neo-tree").config
   input:mount()
+
+  if config.enable_normal_mode_for_inputs and input.prompt_type ~= "confirm" then
+    vim.schedule(function()
+      vim.cmd("stopinsert")
+    end)
+  end
 
   input:map("i", "<esc>", function()
     vim.cmd("stopinsert")
+    if not config.enable_normal_mode_for_inputs or input.prompt_type == "confirm" then
+      input:unmount()
+    end
+  end, { noremap = true })
+
+  input:map("n", "<esc>", function()
+    input:unmount()
+  end, { noremap = true })
+
+  input:map("n", "q", function()
     input:unmount()
   end, { noremap = true })
 
@@ -42,9 +59,14 @@ M.input = function(message, default_value, callback, options, completion)
     M.show_input(input)
   else
     local opts = {
-      prompt = message .. " ",
+      prompt = message .. "\n",
       default = default_value,
     }
+    if vim.opt.cmdheight:get() == 0 then
+      -- NOTE: I really don't know why but letters before the first '\n' is not rendered execpt in noice.nvim
+      --       when vim.opt.cmdheight = 0 <2023-10-24, pysan3>
+      opts.prompt = "Neo-tree Popup\n" .. opts.prompt
+    end
     if completion then
       opts.completion = completion
     end
@@ -66,6 +88,7 @@ M.confirm = function(message, callback)
       end,
     })
 
+    input.prompt_type = "confirm"
     M.show_input(input)
   else
     local opts = {

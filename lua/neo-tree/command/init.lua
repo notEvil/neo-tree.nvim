@@ -11,6 +11,12 @@ local M = {
   complete_args = completion.complete_args,
 }
 
+-- Store the last source used for `M.execute`
+M._last = {
+  source = nil,
+  position = nil,
+}
+
 ---Executes a Neo-tree action from outside of a Neo-tree window,
 ---such as show, hide, navigate, etc.
 ---@param args table The action to execute. The table can have the following keys:
@@ -61,6 +67,23 @@ M.execute = function(args)
   -- The rest of the actions require a source
   args.source = args.source or nt.config.default_source
 
+  -- Handle source=last
+  if args.source == "last" then
+    args.source = M._last.source or nt.config.default_source
+
+    -- Restore last position if it was not specified
+    if args.position == nil then
+      args.position = M._last.position
+    end
+
+    -- Prevent the default source from being set to "last"
+    if args.source == "last" then
+      args.source = nt.config.sources[1]
+    end
+  end
+  M._last.source = args.source
+  M._last.position = args.position
+
   -- If position=current was requested, but we are currently in a neo-tree window,
   -- then we need to override that.
   if args.position == "current" and vim.bo.filetype == "neo-tree" then
@@ -100,7 +123,9 @@ M.execute = function(args)
   -- Handle setting directory if requested
   local path_changed = false
   if utils.truthy(args.dir) then
-    if #args.dir > 1 and args.dir:sub(-1) == utils.path_separator then
+    -- Root paths on Windows have 3 characters ("C:\")
+    local root_len = vim.fn.has("win32") == 1 and 3 or 1
+    if #args.dir > root_len and args.dir:sub(-1) == utils.path_separator then
       args.dir = args.dir:sub(1, -2)
     end
     path_changed = state.path ~= args.dir
@@ -114,6 +139,9 @@ M.execute = function(args)
     state.git_base = args.git_base
   end
 
+  -- Handle source selector option
+  state.enable_source_selector = args.selector
+
   -- Handle reveal logic
   args.reveal = args.reveal or args.reveal_force_cwd
   local do_reveal = utils.truthy(args.reveal_file)
@@ -124,9 +152,9 @@ M.execute = function(args)
 
   -- All set, now show or focus the window
   local force_navigate = path_changed or do_reveal or git_base_changed or state.dirty
-  if position_changed and args.position ~= "current" and current_position ~= "current" then
-    manager.close(args.source)
-  end
+  --if position_changed and args.position ~= "current" and current_position ~= "current" then
+  --  manager.close(args.source)
+  --end
   if do_reveal then
     handle_reveal(args, state)
   else
@@ -159,7 +187,7 @@ do_show_or_focus = function(args, state, force_navigate)
       -- There's nothing to do here, we are already at the target state
       return
     end
-    close_other_sources()
+    -- close_other_sources()
     local current_win = vim.api.nvim_get_current_win()
     manager.navigate(state, args.dir, args.reveal_file, function()
       -- navigate changes the window to neo-tree, so just quickly hop back to the original window
@@ -171,7 +199,7 @@ do_show_or_focus = function(args, state, force_navigate)
       vim.api.nvim_set_current_win(state.winid)
     end
     if force_navigate or not window_exists then
-      close_other_sources()
+      -- close_other_sources()
       manager.navigate(state, args.dir, args.reveal_file, nil, false)
     end
   end

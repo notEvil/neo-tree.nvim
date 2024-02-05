@@ -11,7 +11,7 @@ local git = require("neo-tree.git")
 
 local M = {
   name = "buffers",
-  display_name = "  Buffers "
+  display_name = " 󰈚 Buffers "
 }
 
 local wrap = function(func)
@@ -63,7 +63,7 @@ local buffers_changed_internal = function()
     local state = manager.get_state(M.name, tabid)
     if state.path and renderer.window_exists(state) then
       items.get_opened_buffers(state)
-      if state.follow_current_file then
+      if state.follow_current_file.enabled then
         follow_internal()
       end
     end
@@ -82,7 +82,7 @@ end
 
 ---Navigate to the given path.
 ---@param path string Path to navigate to. If empty, will navigate to the cwd.
-M.navigate = function(state, path, path_to_reveal)
+M.navigate = function(state, path, path_to_reveal, callback, async)
   state.dirty = false
   local path_changed = false
   if path == nil then
@@ -100,6 +100,10 @@ M.navigate = function(state, path, path_to_reveal)
 
   if path_changed and state.bind_to_cwd then
     vim.api.nvim_command("tcd " .. path)
+  end
+
+  if type(callback) == "function" then
+    vim.schedule(callback)
   end
 end
 
@@ -162,6 +166,12 @@ M.setup = function(config, global_config)
 
   if global_config.enable_diagnostics then
     manager.subscribe(M.name, {
+      event = events.STATE_CREATED,
+      handler = function(state)
+        state.diagnostics_lookup = utils.get_diagnostic_counts()
+      end,
+    })
+    manager.subscribe(M.name, {
       event = events.VIM_DIAGNOSTIC_CHANGED,
       handler = wrap(manager.diagnostics_changed),
     })
@@ -176,7 +186,7 @@ M.setup = function(config, global_config)
   end
 
   -- Configure event handler for follow_current_file option
-  if config.follow_current_file then
+  if config.follow_current_file.enabled then
     manager.subscribe(M.name, {
       event = events.VIM_BUFFER_ENTER,
       handler = M.follow,

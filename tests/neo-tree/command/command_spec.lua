@@ -7,6 +7,8 @@ local run_focus_command = function(command, expected_tree_node)
   local winid = vim.api.nvim_get_current_win()
 
   vim.cmd(command)
+  u.wait_for_neo_tree({ interval = 10, timeout = 200 })
+  --u.wait_for_neo_tree()
   verify.window_handle_is_not(winid)
   verify.buf_name_endswith("neo-tree filesystem [1]")
   if expected_tree_node then
@@ -129,11 +131,13 @@ describe("Command", function()
   for _, follow_current_file in ipairs({ true, false }) do
     require("neo-tree").setup({
       filesystem = {
-        follow_current_file = follow_current_file,
+        follow_current_file = {
+          enabled = follow_current_file,
+        },
       },
     })
 
-    describe(string.format("w/ follow_current_file=%s", follow_current_file), function()
+    describe(string.format("w/ follow_current_file.enabled=%s", follow_current_file), function()
       describe("with show  :", function()
         it("`:Neotree show` should show the window without focusing", function()
           local cmd = "Neotree show"
@@ -184,11 +188,10 @@ describe("Command", function()
           u.editfile(baz)
           run_focus_command("Neotree reveal", baz)
           local expected_tree_node = baz
+          -- toggle CLOSE
+          vim.cmd(cmd)
 
           verify.after(500, function()
-            -- toggle CLOSE
-            vim.cmd(cmd)
-
             -- toggle OPEN
             u.editfile(topfile)
             if follow_current_file then

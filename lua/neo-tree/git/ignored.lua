@@ -84,14 +84,14 @@ M.mark_ignored = function(state, items, callback)
   end
 
   local function finalize(all_results)
-    local show_anyway = state.filtered_items and state.filtered_items.hide_gitignored == false
-    log.trace("IGNORED: Comparing results to mark items as ignored, show_anyway:", show_anyway)
+    local show_gitignored = state.filtered_items and state.filtered_items.hide_gitignored == false
+    log.trace("IGNORED: Comparing results to mark items as ignored:", show_gitignored)
     local ignored, not_ignored = 0, 0
     for _, item in ipairs(items) do
       if M.is_ignored(all_results, item.path, item.type) then
         item.filtered_by = item.filtered_by or {}
         item.filtered_by.gitignored = true
-        item.filtered_by.show_anyway = show_anyway
+        item.filtered_by.show_gitignored = show_gitignored
         ignored = ignored + 1
       else
         not_ignored = not_ignored + 1
@@ -104,7 +104,29 @@ M.mark_ignored = function(state, items, callback)
   local all_results = {}
   if type(callback) == "function" then
     local jobs = {}
-    local progress = 0
+    local running_jobs = 0
+    local job_count = 0
+    local completed_jobs = 0
+
+    -- This is called when a job completes, and starts the next job if there are any left
+    -- or calls the callback if all jobs are complete.
+    -- It is also called once at the start to start the first 50 jobs.
+    --
+    -- This is done to avoid running too many jobs at once, which can cause a crash from
+    -- having too many open files.
+    local run_more_jobs = function()
+      while #jobs > 0 and running_jobs < 50 and job_count > completed_jobs do
+        local next_job = table.remove(jobs, #jobs)
+        next_job:start()
+        running_jobs = running_jobs + 1
+      end
+
+      if completed_jobs == job_count then
+        finalize(all_results)
+        callback(all_results)
+      end
+    end
+
     for folder, folder_items in pairs(folders) do
       local args = { "-C", folder, "check-ignore", "--stdin" }
       local job = Job:new({
@@ -118,25 +140,23 @@ M.mark_ignored = function(state, items, callback)
         on_exit = function(self, code, _)
           local result
           if code ~= 0 then
-            log.debug("Failed to load ignored files for", state.path, ":", self:stderr_result())
+            log.debug("Failed to load ignored files for", folder, ":", self:stderr_result())
             result = {}
           else
             result = self:result()
           end
           vim.list_extend(all_results, process_result(result))
-          progress = progress + 1
-          if progress == #jobs then
-            finalize(all_results)
-            callback(all_results)
-          end
+
+          running_jobs = running_jobs - 1
+          completed_jobs = completed_jobs + 1
+          run_more_jobs()
         end,
       })
       table.insert(jobs, job)
+      job_count = job_count + 1
     end
 
-    for _, job in ipairs(jobs) do
-      job:start()
-    end
+    run_more_jobs()
   else
     for folder, folder_items in pairs(folders) do
       local cmd = { "git", "-C", folder, "check-ignore", unpack(folder_items) }

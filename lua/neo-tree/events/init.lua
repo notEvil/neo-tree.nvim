@@ -5,6 +5,7 @@ local utils = require("neo-tree.utils")
 
 local M = {
   -- Well known event names, you can make up your own
+  STATE_CREATED = "state_created",
   BEFORE_RENDER = "before_render",
   AFTER_RENDER = "after_render",
   FILE_ADDED = "file_added",
@@ -52,7 +53,7 @@ M.define_autocmd_event = function(event_name, autocmds, debounce_frequency, seed
   local opts = {
     setup = function()
       local tpl =
-        ":lua require('neo-tree.events').fire_event('%s', { afile = vim.fn.expand('<afile>') })"
+        ":lua require('neo-tree.events').fire_event('%s', { afile = vim.F.npcall(vim.fn.expand, '<afile>') or '' })"
       local callback = string.format(tpl, event_name)
       if nested then
         callback = "++nested " .. callback
